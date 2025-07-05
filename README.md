@@ -70,7 +70,7 @@ Our solution is an end-to-end CI/CD pipeline for automating Windows security pat
 - This is done securely without the need for SSH or RDP access.
 - The patch execution is fully logged to CloudWatch Logs (D2) for audit and observability.
 
-Stage 6: Analyze Patch Logs with Amazon Bedrock (LLM)
+### Stage 6: Analyze Patch Logs with Amazon Bedrock (LLM)
 - CloudWatch logs are sent to Amazon Bedrock to analyze patch failures.
 - The LLM interprets errors, provides probable causes, and recommends corrective actions in natural language.
 - This reduces the burden of log analysis for engineers and speeds up troubleshooting.
