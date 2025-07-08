@@ -12,3 +12,8 @@ output "public_subnets" {
   description = "Public subnet IDs"
   value       = module.vpc.public_subnets
 }
+
+output "jenkins_server_public_ip" {
+  description = "Public IP of the Jenkins server"
+  value       = module.jenkins_server.jenkins_public_ip
+}
