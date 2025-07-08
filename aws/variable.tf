@@ -59,7 +59,7 @@ variable "key_name" {
 }
 
 variable "user_data_file" {
-  description = "Path to the user data script for the EC2 instance"
+  description = "Path to the user data install script for the EC2 instance"
   type        = string
 }
 
