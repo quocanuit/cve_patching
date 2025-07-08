@@ -1,0 +1,14 @@
+aws_region          = "ap-southeast-2"
+project_name        = "hackathon-challenge8"
+vpc_cidr            = "10.0.0.0/16"
+availability_zones  = ["ap-southeast-2a", "ap-southeast-2b"]
+public_subnets      = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnets     = ["10.0.10.0/24", "10.0.20.0/24"]
+enable_nat_gateway  = true
+bucket_name         = "challenge8-state-storage"
+dynamodb_table_name = "challenge8-terraform-lock"
+ami_id              = "ami-010876b9ddd38475e" #Ubuntu Server 24.04 LTS
+instance_type       = "t3.large"
+key_name            = "cve_patch_136_kp"
+user_data_file      = "user_data"
+allowed_ssh_cidr    = "0.0.0.0/0"
