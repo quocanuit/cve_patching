@@ -25,3 +25,9 @@ module "vpc" {
   enable_nat_gateway = var.enable_nat_gateway
   project_name       = var.project_name
 }
+
+module "backend" {
+  source              = "./modules/storage/backend"
+  bucket_name         = var.bucket_name
+  dynamodb_table_name = var.dynamodb_table_name
+}
