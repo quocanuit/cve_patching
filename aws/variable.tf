@@ -43,26 +43,6 @@ variable "dynamodb_table_name" {
   type        = string
 }
 
-variable "ami_id" {
-  description = "AMI ID for the EC2 instance"
-  type        = string
-}
-
-variable "instance_type" {
-  description = "Instance type for the EC2 instance"
-  type        = string
-}
-
-variable "key_name" {
-  description = "Key pair name for SSH access to the EC2 instance"
-  type        = string
-}
-
-variable "user_data_file" {
-  description = "Path to the user data install script for the EC2 instance"
-  type        = string
-}
-
 variable "allowed_ssh_cidr" {
   description = "Value of the CIDR block allowed for SSH access to public instances"
   type        = string
