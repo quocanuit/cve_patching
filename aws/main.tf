@@ -38,19 +38,3 @@ module "security_group" {
   vpc_id           = module.vpc.vpc_id
   allowed_ssh_cidr = var.allowed_ssh_cidr
 }
-
-data "template_file" "user_data" {
-  template = file("./user_data.sh")
-}
-
-
-module "jenkins_server" {
-  source                 = "./modules/compute"
-  project_name           = var.project_name
-  ami_id                 = var.ami_id
-  instance_type          = var.instance_type
-  key_name               = var.key_name
-  user_data_file         = data.template_file.user_data.rendered
-  subnet_id              = module.vpc.public_subnets[0]
-  jenkins_security_group = module.security_group.public_jenkins_sg_id
-}
