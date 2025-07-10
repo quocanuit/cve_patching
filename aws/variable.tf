@@ -48,3 +48,7 @@ variable "allowed_ssh_cidr" {
   type        = string
 }
 
+variable "bucket_name_cve" {
+  description = "Name of the S3 bucket to store CVE csv"
+  type        = string
+}

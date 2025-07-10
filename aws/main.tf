@@ -38,3 +38,8 @@ module "security_group" {
   vpc_id           = module.vpc.vpc_id
   allowed_ssh_cidr = var.allowed_ssh_cidr
 }
+
+module "lambda" {
+  source                 = "./modules/lambda"
+  bucket_name             = var.bucket_name_cve
+}

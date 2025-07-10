@@ -49,3 +49,5 @@ terraform.rc
 .terraform.lock.hcl
 # Bỏ qua thư mục .terraform ở mọi cấp
 .terraform/
+
+*.zip
