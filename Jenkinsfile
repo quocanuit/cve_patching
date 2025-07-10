@@ -43,9 +43,6 @@ pipeline {
         }
         
         stage('Execute Patches') {
-            when {
-                not { params.DRY_RUN }
-            }
             steps {
                 script {
                     // Execute patches on Windows servers using AWS SSM
