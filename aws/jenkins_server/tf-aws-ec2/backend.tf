@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "terraform-cve-patching"
+    bucket = "project-state-storage"
     key    = "jenkins/terraform.tfstate"
     region = "ap-southeast-2"
   }

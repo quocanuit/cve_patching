@@ -1,6 +1,6 @@
 aws_region = "ap-southeast-2"
 aws_account_id = "816069143343"
-backend_jenkins_bucket = "terraform-cve-patching"
+backend_jenkins_bucket = "project-state-storage"
 backend_jenkins_bucket_key = "jenkins/terraform.tfstate"
 project_name = "ci-cd-project"
 availability_zone = "ap-southeast-2a"
