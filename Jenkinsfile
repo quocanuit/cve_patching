@@ -13,6 +13,7 @@ pipeline {
         stage('Download & Validate Input') {
             steps {
                 script {
+                    echo 'Download & Validate Input'
                     // Download CSV file from S3 and validate format
                 }
             }
@@ -21,6 +22,7 @@ pipeline {
         stage('Filter Severity using AWS Glue') {
             steps {
                 script {
+                    echo 'Filter Severity using AWS Glue'
                     // Use AWS Glue to filter Critical and Important CVEs
                 }
             }
@@ -29,6 +31,7 @@ pipeline {
         stage('Classify Unknown Severity') {
             steps {
                 script {
+                    echo 'Classify Unknown Severity'
                     // Use Amazon Bedrock to classify CVEs with unknown severity
                 }
             }
@@ -37,6 +40,7 @@ pipeline {
         stage('Predict Patch Duration (ML)') {
             steps {
                 script {
+                    echo 'Predict Patch Duration (ML)'
                     // Use SageMaker to predict patch duration and success probability
                 }
             }
@@ -45,6 +49,7 @@ pipeline {
         stage('Execute Patches') {
             steps {
                 script {
+                    echo 'Execute Patches'
                     // Execute patches on Windows servers using AWS SSM
                 }
             }
@@ -53,6 +58,7 @@ pipeline {
         stage('Analyze Results') {
             steps {
                 script {
+                    echo 'Analyze Results'
                     // Analyze patch results and generate execution report
                 }
             }
@@ -61,6 +67,7 @@ pipeline {
         stage('Generate Final Report') {
             steps {
                 script {
+                    echo 'Generate Final Report'
                     // Generate comprehensive HTML report and send notifications
                 }
             }
@@ -69,6 +76,7 @@ pipeline {
     
     post {
         always {
+            echo 'Clean'
             //
         }
     }
