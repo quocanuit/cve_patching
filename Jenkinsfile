@@ -1,22 +1,11 @@
 pipeline {
     agent any
     
-    parameters {
-        
-    }
-    
-    environment {
-        AWS_DEFAULT_REGION = 'ap-southeast-1'
-        GLUE_JOB_NAME = ''
-        SAGEMAKER_ENDPOINT = ''
-        SNS_TOPIC_ARN = credentials('')
-    }
-    
     stages {
         stage('Initialize') {
             steps {
                 script {
-                    // Setup working directories and environment
+                    echo 'Hello World'
                 }
             }
         }
