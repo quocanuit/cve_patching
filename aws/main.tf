@@ -39,7 +39,7 @@ module "security_group" {
   allowed_ssh_cidr = var.allowed_ssh_cidr
 }
 
-module "lambda_trigger" {
+module "lambda" {
   source                 = "./modules/lambda"
-  bucket_name             = var.bucket_name
+  bucket_name             = var.bucket_name_cve
 }

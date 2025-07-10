@@ -8,3 +8,4 @@ enable_nat_gateway  = true
 bucket_name         = "project-state-storage"
 dynamodb_table_name = "project-terraform-lock"
 allowed_ssh_cidr    = "0.0.0.0/0"
+bucket_name_cve     = "cve-bucket-abh"
