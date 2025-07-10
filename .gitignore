@@ -44,3 +44,8 @@ terraform.rc
 
 # pem files
 *.pem
+
+# Bỏ qua file lock của Terraform
+.terraform.lock.hcl
+# Bỏ qua thư mục .terraform ở mọi cấp
+.terraform/
