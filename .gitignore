@@ -5,11 +5,17 @@
 # Local .terraform directories
 **/.terraform/*
 
+<<<<<<< HEAD
 # .tfstate and hcl files 
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
 .terraform.lock.hcl
+=======
+# .tfstate files
+*.tfstate
+*.tfstate.*
+>>>>>>> 914ed14206fc3a9860c12143edbd9633d93089b8
 
 # Crash log files
 crash.log
@@ -45,4 +51,15 @@ terraform.rc
 *.csv
 
 # pem files
+<<<<<<< HEAD
 *.pem
+=======
+*.pem
+
+# Bỏ qua file lock của Terraform
+.terraform.lock.hcl
+# Bỏ qua thư mục .terraform ở mọi cấp
+.terraform/
+
+*.zip
+>>>>>>> 914ed14206fc3a9860c12143edbd9633d93089b8
