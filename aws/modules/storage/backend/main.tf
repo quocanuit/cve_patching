@@ -1,6 +1,7 @@
 # Tạo S3 Bucket để lưu state file
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.bucket_name
+  region = "ap-southeast-2" # Chỉ định vùng cho S3 bucket
   tags = {
     Name        = var.bucket_name
     Environment = "dev"
