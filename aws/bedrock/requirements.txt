@@ -1,0 +1,4 @@
+boto3>=1.39.4
+tqdm >=4.67.1
+botocore>=1.39.
+pandas>=2.3.1
