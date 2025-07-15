@@ -112,7 +112,25 @@ pipeline {
             steps {
                 script {
                     echo 'Classify Unknown Severity'
-                    // Use Amazon Bedrock to classify CVEs with unknown severity
+                    sh """
+                        python3 -m ensurepip --upgrade
+                    
+                        # Gán thủ công biến $HOME vì Jenkins không luôn thiết lập nó
+                        export HOME=/var/lib/jenkins
+                        export PATH="\$HOME/.local/bin:\$PATH"
+                    
+                        aws s3 cp s3://cve-bucket-abh/requirements.txt requirements.txt --region ap-southeast-2
+                    
+                        # Gọi pip thông qua python để đảm bảo luôn tìm thấy
+                        python3 -m pip install -r requirements.txt
+                    
+                        aws s3 cp s3://cve-bucket-abh/filtered_csv/run-1752587137322-part-r-00000 latest_cves_patch.csv --region ap-southeast-2
+                        aws s3 cp s3://cve-bucket-abh/classify.py classify.py --region ap-southeast-2
+                    
+                        python3 classify.py \
+                            CLASSIFY_INPUT=latest_cves_patch.csv \
+                            CLASSIFY_OUTPUT=updated_cves_patch.csv
+                    """
                 }
             }
         }
