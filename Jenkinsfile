@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     environment {
         // AWS Access Credentials
         AWS_REGION            = 'ap-southeast-2'
@@ -11,17 +11,30 @@ pipeline {
         S3_BUCKET             = 'cve-bucket-abh'
         GLUE_JOB_NAME         = 'filter-cve-job'
         S3_OUTPUT_PREFIX      = 'filtered_csv/'
+
+        // Patch Configuration
+        PATCH_GROUP           = 'my-target-group'
+        PATCH_BASELINE_NAME   = 'custom-kb-baseline'
     }
-    
+
     stages {
         stage('Initialize') {
             steps {
                 script {
-                    echo 'Hello World'
+                    echo 'Initialize'
+                    sh """
+                        python3 -m ensurepip --upgrade
+                        
+                        export HOME=/var/lib/jenkins
+                        export PATH="\$HOME/.local/bin:\$PATH"
+
+                        aws s3 cp s3://cve-bucket-abh/requirements.txt requirements.txt --region ap-southeast-2
+                        python3 -m pip install -r requirements.txt
+                    """
                 }
             }
         }
-        
+
         stage('Identify Latest CSV in S3') {
             steps {
                 script {
@@ -107,52 +120,147 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Classify Unknown Severity') {
             steps {
                 script {
                     echo 'Classify Unknown Severity'
                     sh """
-                        python3 -m ensurepip --upgrade
-                    
-                        # Gán thủ công biến $HOME vì Jenkins không luôn thiết lập nó
-                        export HOME=/var/lib/jenkins
-                        export PATH="\$HOME/.local/bin:\$PATH"
-                    
-                        aws s3 cp s3://cve-bucket-abh/requirements.txt requirements.txt --region ap-southeast-2
-                    
-                        # Gọi pip thông qua python để đảm bảo luôn tìm thấy
-                        python3 -m pip install -r requirements.txt
-                    
-                        aws s3 cp s3://cve-bucket-abh/filtered_csv/run-1752587137322-part-r-00000 latest_cves_patch.csv --region ap-southeast-2
                         aws s3 cp s3://cve-bucket-abh/classify.py classify.py --region ap-southeast-2
                     
                         python3 classify.py \
                             CLASSIFY_INPUT=latest_cves_patch.csv \
                             CLASSIFY_OUTPUT=updated_cves_patch.csv
+
+                        echo "Uploading updated CSV to S3..."
+                        aws s3 cp updated_cves_patch.csv s3://cve-bucket-abh/updated_csv/updated_cves_patch.csv --region ap-southeast-2
                     """
                 }
             }
         }
-        
-        stage('Predict Patch Duration (ML)') {
+
+        // stage('Predict Patch Duration (ML)') {
+        //     steps {
+        //         script {
+        //             echo 'Predict Patch Duration (ML)'
+        //             // Use SageMaker to predict patch duration and success probability
+        //         }
+        //     }
+        // }
+
+        // stage('Execute Patches') {
+        stage('Extract KB IDs from CSV') {
             steps {
                 script {
-                    echo 'Predict Patch Duration (ML)'
-                    // Use SageMaker to predict patch duration and success probability
+                    def csv = readFile('updated_cves_patch.csv')
+                    def kbSet = [] as Set
+
+                    csv.split('\n').eachWithIndex { line, idx ->
+                        if (idx == 0) return // Skip header
+                        def columns = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/) // CSV-safe split
+                        def downloadLink = columns.size() > 5 ? columns[5].trim().replaceAll('"', '') : ''
+                        def matcher = downloadLink =~ /(KB\d{7})/
+                        if (matcher.find()) {
+                            kbSet << matcher.group(1)
+                        }
+                    }
+
+                    if (kbSet.isEmpty()) {
+                        error "No KB found in CSV!"
+                    }
+
+                    def top2 = kbSet.toList().take(2)
+                    def approvedPatchesJson = "[" + top2.collect { "\"$it\"" }.join(',') + "]"
+                    env.APPROVED_PATCHES_JSON = approvedPatchesJson
+                    echo "Top 2 KB: ${approvedPatchesJson}"
                 }
             }
         }
-        
-        stage('Execute Patches') {
+
+        stage('Create or Update Patch Baseline') {
             steps {
                 script {
-                    echo 'Execute Patches'
-                    // Execute patches on Windows servers using AWS SSM
+                    echo "Create or Update Patch Baseline..."
+
+                    def baselineId = sh(
+                        script: """
+                            aws ssm describe-patch-baselines \
+                            --filters "Key=NAME,Values=${PATCH_BASELINE_NAME}" \
+                            --region ${AWS_REGION} \
+                            --query "BaselineIdentities[0].BaselineId" \
+                            --output text 2>/dev/null || true
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    if (baselineId == "None" || baselineId == "") {
+                        baselineId = sh(
+                            script: """
+                                aws ssm create-patch-baseline \
+                                --name "${PATCH_BASELINE_NAME}" \
+                                --approved-patches '${env.APPROVED_PATCHES_JSON}' \
+                                --region ${AWS_REGION} \
+                                --query "BaselineId" \
+                                --output text
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        echo "New Baseline created: ${baselineId}"
+                    } else {
+                        echo "Baseline existed: ${baselineId}"
+                        sh """
+                            aws ssm update-patch-baseline \
+                            --baseline-id "${baselineId}" \
+                            --approved-patches '${env.APPROVED_PATCHES_JSON}' \
+                            --region ${AWS_REGION}
+                        """
+                        echo "Baseline updated."
+                    }
+
+                    env.BASELINE_ID = baselineId
                 }
             }
         }
-        
+
+        stage('Register Patch Baseline with Patch Group') {
+            steps {
+                sh '''
+                echo "Register Patch Baseline with Patch Group..."
+
+                OLD_BASELINE_ID=$(aws ssm describe-patch-groups \
+                  --region "$AWS_REGION" \
+                  --query "Mappings[?PatchGroup=='${PATCH_GROUP}'].BaselineIdentity.BaselineId" \
+                  --output text)
+
+                if [ -n "$OLD_BASELINE_ID" ] && [ "$OLD_BASELINE_ID" != "${BASELINE_ID}" ]; then
+                  echo "Deregistering old baseline: $OLD_BASELINE_ID"
+                  aws ssm deregister-patch-baseline-for-patch-group \
+                    --baseline-id "$OLD_BASELINE_ID" \
+                    --patch-group "$PATCH_GROUP" \
+                    --region "$AWS_REGION"
+                fi
+
+                aws ssm register-patch-baseline-for-patch-group \
+                  --baseline-id "${BASELINE_ID}" \
+                  --patch-group "$PATCH_GROUP" \
+                  --region "$AWS_REGION"
+                '''
+            }
+        }
+
+        stage('Run Patch via SSM') {
+            steps {
+                sh '''
+                aws ssm send-command \
+                  --document-name "AWS-RunPatchBaseline" \
+                  --targets "Key=tag:PatchGroup,Values=${PATCH_GROUP}" \
+                  --parameters Operation=Install \
+                  --comment "Apply KB patches from CSV via Jenkins" \
+                  --region ${AWS_REGION}
+                '''
+            }
+        }
+
         stage('Analyze Results') {
             steps {
                 script {
@@ -161,7 +269,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Generate Final Report') {
             steps {
                 script {
@@ -171,10 +279,11 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             echo 'Clean'
+            cleanWs()
             //
         }
     }
