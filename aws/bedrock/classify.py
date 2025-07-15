@@ -7,10 +7,12 @@ from botocore.exceptions import ClientError
 import random
 import logging
 from datetime import datetime
+import os
 
-# ==== CONFIG SECTION ====
-INPUT_CSV = "./latest_cves_patch.csv"
-OUTPUT_CSV = "./update/updated_cves_patch.csv"
+# Lấy từ môi trường (do Jenkins truyền vào), nếu không có thì dùng default
+INPUT_CSV = os.environ.get("CLASSIFY_INPUT", "latest_cves_patch.csv")
+OUTPUT_CSV = os.environ.get("CLASSIFY_OUTPUT", "updated_cves_patch.csv")
+
 BEDROCK_REGION = "ap-southeast-2"
 MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"  # Haiku nhanh hơn, ít throttling hơn
 
