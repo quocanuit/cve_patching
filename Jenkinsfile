@@ -26,10 +26,8 @@ pipeline {
                     echo 'Initialize'
                     sh """
                         python3 -m ensurepip --upgrade
-                        
                         export HOME=/var/lib/jenkins
                         export PATH="\$HOME/.local/bin:\$PATH"
-
                         aws s3 cp s3://cve-bucket-abh/requirements.txt requirements.txt --region ap-southeast-2
                         python3 -m pip install -r requirements.txt
                     """
@@ -129,11 +127,7 @@ pipeline {
                     echo 'Classify Unknown Severity'
                     sh """
                         aws s3 cp s3://cve-bucket-abh/classify.py classify.py --region ap-southeast-2
-                    
-                        python3 classify.py \
-                            CLASSIFY_INPUT=latest_cves_patch.csv \
-                            CLASSIFY_OUTPUT=updated_cves_patch.csv
-
+                        python3 classify.py CLASSIFY_INPUT=latest_cves_patch.csv CLASSIFY_OUTPUT=updated_cves_patch.csv
                         echo "Uploading updated CSV to S3..."
                         aws s3 cp updated_cves_patch.csv s3://cve-bucket-abh/updated_csv/updated_cves_patch.csv --region ap-southeast-2
                     """
@@ -141,16 +135,6 @@ pipeline {
             }
         }
 
-        // stage('Predict Patch Duration (ML)') {
-        //     steps {
-        //         script {
-        //             echo 'Predict Patch Duration (ML)'
-        //             // Use SageMaker to predict patch duration and success probability
-        //         }
-        //     }
-        // }
-
-        // stage('Execute Patches') {
         stage('Extract KB IDs from CSV') {
             steps {
                 script {
@@ -270,7 +254,6 @@ pipeline {
                     def logDir = "/var/lib/jenkins/logs"
                     sh """
                         mkdir -p ${logDir}
-
                         export PYTHONIOENCODING=UTF-8
                         export PYTHONUTF8=1
 
@@ -307,46 +290,67 @@ pipeline {
         stage('Publish Logs via SNS') {
             steps {
                 script {
-                def logDir = "/var/lib/jenkins/logs"
-                def bucket = "${S3_BUCKET}"
+                    def logDir = "/var/lib/jenkins/logs"
+                    def bucket = "${S3_BUCKET}"
+                    def currentDate = new Date().format("dd/MM/yyyy HH:mm:ss")
+                    def buildInfo = "${env.JOB_NAME} - Build #${env.BUILD_NUMBER}"
 
-                def urlApp = sh(script: """
-                    aws s3 cp "${logDir}/EC2-Windows-ApplicationLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --region ${AWS_REGION}
-                    aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --expires-in 86400
-                """, returnStdout: true).trim()
-                def urlSys = sh(script: """
-                    aws s3 cp "${logDir}/EC2-Windows-SystemLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --region ${AWS_REGION}
-                    aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --expires-in 86400
-                """, returnStdout: true).trim()
+                    // Upload Application Logs and generate presigned URL
+                    def urlApp = sh(script: """
+                        aws s3 cp "${logDir}/EC2-Windows-ApplicationLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --region ${AWS_REGION}
+                        aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --expires-in 86400
+                    """, returnStdout: true).trim()
 
-                sh """
-                    cat > message.txt <<EOF
-                    Jenkins EC2 Report
+                    // Upload System Logs and generate presigned URL
+                    def urlSys = sh(script: """
+                        aws s3 cp "${logDir}/EC2-Windows-SystemLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --region ${AWS_REGION}
+                        aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --expires-in 86400
+                    """, returnStdout: true).trim()
 
-                    📥 Download latest logs:
-                    • *Application Logs*: ${urlApp}
-                    • *System Logs*:      ${urlSys}
+                    // Create professional email content
+                    sh """
+                        cat > message.txt <<EOF
+Subject: Jenkins Build Report - EC2 Windows Logs Available
 
-                    Links hợp lệ trong 24h.
-                    EOF
-                """
+Dear Team,
 
-                sh """
-                    aws sns publish \
-                    --topic-arn "arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:${SNS_TOPIC}" \
-                    --subject "Jenkins EC2 Report" \
-                    --message file://message.txt \
-                    --region ${AWS_REGION}
-                """
-                }
-            }
-        }
+The Jenkins build has completed successfully and the latest EC2 Windows logs are now available for download.
 
-        stage('Generate Final Report') {
-            steps {
-                script {
-                    echo 'Generate Final Report'
-                    // Generate comprehensive HTML report and send notifications
+BUILD INFORMATION:
+• Job Name: ${env.JOB_NAME}
+• Build Number: #${env.BUILD_NUMBER}
+• Build Status: ${currentBuild.result ?: 'SUCCESS'}
+• Timestamp: ${currentDate}
+
+LOG FILES AVAILABLE:
+The following log files have been uploaded to S3 and are accessible via the secure links below:
+
+1. Application Logs
+Download: ${urlApp}
+
+2. System Logs  
+Download: ${urlSys}
+
+IMPORTANT NOTES:
+• These download links are valid for 24 hours from the time of generation
+• The files are securely stored in S3 bucket: ${bucket}
+• If you encounter any issues accessing the logs, please contact the DevOps team
+
+For any questions or support, please reach out to the development team.
+
+Best regards,
+Jenkins Automation System
+EOF
+                    """
+
+                    // Send notification via SNS
+                    sh """
+                        aws sns publish \
+                        --topic-arn "arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:${SNS_TOPIC}" \
+                        --subject "Jenkins Build Report - EC2 Windows Logs Available" \
+                        --message file://message.txt \
+                        --region ${AWS_REGION}
+                    """
                 }
             }
         }
@@ -356,7 +360,6 @@ pipeline {
         always {
             echo 'Clean'
             cleanWs()
-            //
         }
     }
 }
