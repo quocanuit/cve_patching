@@ -260,15 +260,15 @@ def classify_null_rows_with_checkpoint(csv_path: str, output_path: str):
     """
     df = pd.read_csv(csv_path)
 
-    if "Max Severity" not in df.columns or "Details (Link)" not in df.columns:
-        raise ValueError("CSV must contain 'Max Severity' and 'Details (Link)' columns")
+    if "max_severity" not in df.columns or "details" not in df.columns:
+        raise ValueError("CSV must contain 'max_severity' and 'details' columns")
 
     # Load checkpoint
     processed_items = load_checkpoint(CHECKPOINT_FILE)
     logger.info(f"Loaded {len(processed_items)} processed items from checkpoint")
 
     # Chỉ xử lý những dòng có severity bị null và chưa được xử lý
-    null_rows = df["Max Severity"].isnull()
+    null_rows = df["max_severity"].isnull()
     total_null = null_rows.sum()
     
     # Filter out đã xử lý
@@ -424,11 +424,11 @@ def classify_null_rows(csv_path: str, output_path: str):
     """
     df = pd.read_csv(csv_path)
 
-    if "Max Severity" not in df.columns or "Details (Link)" not in df.columns:
-        raise ValueError("CSV must contain 'Max Severity' and 'Details (Link)' columns")
+    if "max_severity" not in df.columns or "details" not in df.columns:
+        raise ValueError("CSV must contain 'max_severity' and 'details' columns")
 
     # Chỉ xử lý những dòng có severity bị null
-    null_rows = df["Max Severity"].isnull()
+    null_rows = df["max_severity"].isnull()
     total_null = null_rows.sum()
 
     print(f"[INFO] Found {total_null} rows with null severity")
@@ -444,9 +444,9 @@ def classify_null_rows(csv_path: str, output_path: str):
     
     with tqdm(total=total_null, desc="Classifying CVEs") as pbar:
         for idx in df[null_rows].index:
-            details = df.loc[idx, "Details (Link)"]
+            details = df.loc[idx, "details"]
             severity = ask_bedrock(details)
-            df.loc[idx, "Max Severity"] = severity
+            df.loc[idx, "max_severity"] = severity
             
             processed_count += 1
             pbar.update(1)
