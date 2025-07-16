@@ -11,6 +11,8 @@ pipeline {
         S3_BUCKET             = 'cve-bucket-abh'
         GLUE_JOB_NAME         = 'filter-cve-job'
         S3_OUTPUT_PREFIX      = 'filtered_csv/'
+        SNS_TOPIC             = 'report-to-mail'
+        AWS_ACCOUNT_ID        = '816069143343'
 
         // Patch Configuration
         PATCH_GROUP           = 'my-target-group'
@@ -261,11 +263,81 @@ pipeline {
             }
         }
 
-        stage('Analyze Results') {
+        stage('Fetch Windows Server Logs') {
             steps {
                 script {
-                    echo 'Analyze Results'
-                    // Analyze patch results and generate execution report
+                    echo 'Fetching Windows Server Logs from CloudWatch...'
+                    def logDir = "/var/lib/jenkins/logs"
+                    sh """
+                        mkdir -p ${logDir}
+
+                        export PYTHONIOENCODING=UTF-8
+                        export PYTHONUTF8=1
+
+                        # ApplicationLogs
+                        aws logs filter-log-events \
+                        --log-group-name EC2-Windows-ApplicationLogs \
+                        --region ${AWS_REGION} \
+                        --max-items 100 \
+                        --query 'events[].message' \
+                        --output text \
+                        > "${logDir}/EC2-Windows-ApplicationLogs.txt"
+
+                        echo "================ ApplicationLogs ================"
+                        cat "${logDir}/EC2-Windows-ApplicationLogs.txt"
+
+                        # SystemLogs
+                        aws logs filter-log-events \
+                        --log-group-name EC2-Windows-SystemLogs \
+                        --region ${AWS_REGION} \
+                        --max-items 100 \
+                        --query 'events[].message' \
+                        --output text \
+                        > "${logDir}/EC2-Windows-SystemLogs.txt"
+
+                        echo "================ SystemLogs ================"
+                        cat "${logDir}/EC2-Windows-SystemLogs.txt"
+
+                        echo "Logs saved to ${logDir}"
+                    """
+                }
+            }
+        }
+
+        stage('Publish Logs via SNS') {
+            steps {
+                script {
+                def logDir = "/var/lib/jenkins/logs"
+                def bucket = "${S3_BUCKET}"
+
+                def urlApp = sh(script: """
+                    aws s3 cp "${logDir}/EC2-Windows-ApplicationLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --region ${AWS_REGION}
+                    aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-ApplicationLogs.txt --expires-in 86400
+                """, returnStdout: true).trim()
+                def urlSys = sh(script: """
+                    aws s3 cp "${logDir}/EC2-Windows-SystemLogs.txt" s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --region ${AWS_REGION}
+                    aws s3 presign s3://${bucket}/jenkins-logs/EC2-Windows-SystemLogs.txt --expires-in 86400
+                """, returnStdout: true).trim()
+
+                sh """
+                    cat > message.txt <<EOF
+                    Jenkins EC2 Report
+
+                    📥 Download latest logs:
+                    • *Application Logs*: ${urlApp}
+                    • *System Logs*:      ${urlSys}
+
+                    Links hợp lệ trong 24h.
+                    EOF
+                """
+
+                sh """
+                    aws sns publish \
+                    --topic-arn "arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:${SNS_TOPIC}" \
+                    --subject "Jenkins EC2 Report" \
+                    --message file://message.txt \
+                    --region ${AWS_REGION}
+                """
                 }
             }
         }
