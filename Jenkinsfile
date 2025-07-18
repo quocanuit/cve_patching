@@ -142,8 +142,8 @@ pipeline {
                     def kbSet = [] as Set
 
                     csv.split('\n').eachWithIndex { line, idx ->
-                        if (idx == 0) return // Skip header
-                        def columns = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/) // CSV-safe split
+                        if (idx == 0) return
+                        def columns = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
                         def downloadLink = columns.size() > 5 ? columns[5].trim().replaceAll('"', '') : ''
                         def matcher = downloadLink =~ /(KB\d{7})/
                         if (matcher.find()) {
@@ -155,10 +155,10 @@ pipeline {
                         error "No KB found in CSV!"
                     }
 
-                    def top2 = kbSet.toList().take(2)
-                    def approvedPatchesJson = "[" + top2.collect { "\"$it\"" }.join(',') + "]"
+                    def top = kbSet.toList()
+                    def approvedPatchesJson = "[" + top.collect { "\"$it\"" }.join(',') + "]"
                     env.APPROVED_PATCHES_JSON = approvedPatchesJson
-                    echo "Top 2 KB: ${approvedPatchesJson}"
+                    echo "KB: ${approvedPatchesJson}"
                 }
             }
         }
