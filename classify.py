@@ -293,11 +293,11 @@ def classify_null_rows_with_checkpoint(csv_path: str, output_path: str):
     
     with tqdm(total=remaining_count, desc="Classifying CVEs") as pbar:
         for idx in remaining_indices:
-            details = df.loc[idx, "Details (Link)"]
+            details = df.loc[idx, "details_link"]
             
             try:
                 severity = ask_bedrock_conservative(details)
-                df.loc[idx, "Max Severity"] = severity
+                df.loc[idx, "max_severity"] = severity
                 processed_items[str(idx)] = severity
                 
                 processed_count += 1
@@ -317,7 +317,7 @@ def classify_null_rows_with_checkpoint(csv_path: str, output_path: str):
                 logger.error(f"Error processing row {idx}: {e}")
                 # Fallback
                 severity = fallback_classify(details)
-                df.loc[idx, "Max Severity"] = severity
+                df.loc[idx, "max_severity"] = severity
                 processed_items[str(idx)] = severity
                 pbar.update(1)
 
